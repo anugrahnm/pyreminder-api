@@ -2,6 +2,8 @@ from fastapi import FastAPI
 import psycopg2
 import os
 from dotenv import load_dotenv
+from datetime import date, datetime
+from pydantic import BaseModel, field_validator
 
 load_dotenv()
 
@@ -15,7 +17,7 @@ app = FastAPI()
 
 # reminders = [{"name": "test", "due_date": "26/06/2026"}]
 
-@app.get("/reminders")
+@app.get("/reminders/")
 async def get_reminders():
     try:    
         with psycopg2.connect(
@@ -34,7 +36,48 @@ async def get_reminders():
 
    
 
-    results = [{cursor_obj.execute("""SELECT * FROM reminders""")}]
+    cursor_obj.execute("""SELECT * FROM reminders""")
 
     rows = cursor_obj.fetchall()
     return [{"id": row[0], "reminder_name": row[1], "due_date": str(row[2])} for row in rows]
+
+
+class Item(BaseModel):
+    reminder_name: str
+    due_date: date
+
+    @field_validator('due_date', mode='before')
+    @classmethod
+    def date_parse(cls, value):
+        if isinstance(value, str):
+            return datetime.strptime(value, "%d/%m/%Y").date()
+        return value
+
+
+@app.post("/reminders/")
+async def add_reminders(item: Item):
+    try:    
+        with psycopg2.connect(
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
+            ) as connection_obj:     
+            
+            print("Connected to PostgreSQL")
+    except psycopg2.Error as e:
+        print(e)
+
+    cursor_obj = connection_obj.cursor()
+
+    add_reminder_query = """
+            INSERT INTO REMINDERS (reminder_name, due_date) VALUES (%s,%s)
+        """
+    ddate = item.due_date
+    
+    cursor_obj.execute(add_reminder_query, [item.reminder_name, ddate])
+    connection_obj.commit()
+    print("Reminder Added!")
+   
+    return item
