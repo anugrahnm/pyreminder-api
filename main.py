@@ -81,3 +81,61 @@ async def add_reminders(item: Item):
     print("Reminder Added!")
    
     return item
+
+
+@app.put("/reminders/{id}")
+async def edit_reminder(id: int, item: Item):
+    try:    
+        with psycopg2.connect(
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
+            ) as connection_obj:     
+            
+            print("Connected to PostgreSQL")
+    except psycopg2.Error as e:
+        print(e)
+
+    cursor_obj = connection_obj.cursor()
+
+    
+    update_name_due_date_query = """
+        UPDATE REMINDERS
+        SET reminder_name = %s, due_date = %s
+        WHERE id = %s
+        """
+    cursor_obj.execute(update_name_due_date_query, [item.reminder_name, item.due_date, id])
+    connection_obj.commit()
+    print("Reminder Added!")
+
+    return id
+
+@app.delete("/reminders/{id}")
+async def delete_reminder(id: int):
+    try:    
+        with psycopg2.connect(
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
+            ) as connection_obj:     
+            
+            print("Connected to PostgreSQL")
+    except psycopg2.Error as e:
+        print(e)
+
+    cursor_obj = connection_obj.cursor()
+    
+    delete_reminder_query = """
+                DELETE FROM REMINDERS WHERE id = %s
+            """
+    try:
+        cursor_obj.execute(delete_reminder_query, (id, ))
+        connection_obj.commit()
+    except ValueError as e:
+        print(e)
+    
+    return id
