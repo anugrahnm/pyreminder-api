@@ -4,12 +4,20 @@ A REST API for managing reminders, built with FastAPI and PostgreSQL.
 
 ## Endpoints
 
+
 | Method | Path              | Description        |
 | ------ | ----------------- | ------------------ |
 | GET    | `/reminders`      | Get all reminders  |
 | POST   | `/reminders`      | Add a new reminder |
 | PUT    | `/reminders/{id}` | Edit a reminder    |
 | DELETE | `/reminders/{id}` | Delete a reminder  |
+
+
+## Demo
+
+[Railway](https://pyreminder-api-production.up.railway.app/docs)
+
+> Note: Enter the date in the format: dd/mm/yyyy
 
 ## Usage
 
@@ -52,3 +60,4 @@ uv run uvicorn main:app --reload
 - PostgreSQL
 - psycopg2-binary
 - python-dotenv
+
