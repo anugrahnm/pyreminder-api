@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from datetime import date, datetime
 from pydantic import BaseModel, field_validator
 from typing import Optional
+import bcrypt
 
 load_dotenv()
 
@@ -17,6 +18,11 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 app = FastAPI()
 
 # reminders = [{"name": "test", "due_date": "26/06/2026"}]
+
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the pyreminder-api!"}   
+
 
 @app.get("/reminders/")
 async def get_reminders(id: Optional[int] = None):
@@ -148,3 +154,53 @@ async def delete_reminder(id: int):
     except psycopg2.Error as e:
         print(e)
         return {"error": "Database issue", "details": str(e)}
+
+
+class User(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("password", mode="before")
+    @classmethod
+    def hash_password(cls, value):
+        pw = bytes(value, encoding="utf-8")
+        hashed = bcrypt.hashpw(pw, bcrypt.gensalt())
+        return hashed
+
+
+@app.post("/signup/")
+async def add_user(user: User):
+    try:    
+        with psycopg2.connect(
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
+            ) as connection_obj:     
+            
+            print("Connected to PostgreSQL")
+
+            with connection_obj.cursor() as cursor_obj:
+            
+                add_user_query = """
+                    INSERT INTO users (email, password_hash) VALUES (%s,%s) 
+                """
+                try:
+                    cursor_obj.execute(add_user_query, (user.email, user.password, ))
+                    connection_obj.commit()
+                except ValueError as e:
+                    print(e)
+                
+                return {"message":"Successfully created new user!"}
+    except psycopg2.errors.UniqueViolation as e:
+        print(e)
+        return {"error": "This email is already registered! Login or try again with a different email.", "details": str(e)}
+
+    except psycopg2.Error as e:
+        print(e)
+        return {"error": "Database issue", "details": str(e)}
+
+@app.post("/login/")
+async def get_user(user: User):
+    pass
