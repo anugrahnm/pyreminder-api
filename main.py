@@ -6,6 +6,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import bcrypt
+from jose import jwt
 
 load_dotenv()
 
@@ -14,6 +15,8 @@ DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 app = FastAPI()
 
@@ -201,6 +204,45 @@ async def add_user(user: User):
         print(e)
         return {"error": "Database issue", "details": str(e)}
 
+class LoginUser(BaseModel):
+    email: str
+    password: str
+
 @app.post("/login/")
-async def get_user(user: User):
-    pass
+async def get_user(login_user: LoginUser):
+    try:    
+        with psycopg2.connect(
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
+            ) as connection_obj:     
+            
+            print("Connected to PostgreSQL")
+
+            with connection_obj.cursor() as cursor_obj:
+            
+                get_user_query = """
+                    SELECT * FROM users WHERE email= %s
+                """
+                try:
+                    cursor_obj.execute(get_user_query, (login_user.email, ))
+                    result = cursor_obj.fetchone()
+                    pw = result[2].encode("utf-8")
+                    if bcrypt.checkpw(login_user.password.encode("utf-8"), pw):
+                        print("It Matches!")
+                        token = jwt.encode({ 'id': result[0] }, SECRET_KEY, algorithm='HS256')
+
+                        return token
+                    else:
+                        print("It Does not Match :(")
+                        return {"message":f"User Found But Password Doesn't Match: {login_user.email}!"}
+
+                except ValueError as e:
+                    print(e)
+                
+
+    except psycopg2.Error as e:
+        print(e)
+        return {"error": "Database issue", "details": str(e)}
